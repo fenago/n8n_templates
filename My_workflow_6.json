@@ -1,0 +1,569 @@
+{
+  "name": "My workflow 6",
+  "nodes": [
+    {
+      "parameters": {
+        "public": true,
+        "options": {}
+      },
+      "id": "148a043e-ad35-4aa0-b6a6-fb06b6e20175",
+      "name": "Chat Trigger",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        40,
+        280
+      ],
+      "webhookId": "youtube-video-finder"
+    },
+    {
+      "parameters": {
+        "url": "https://www.googleapis.com/youtube/v3/videos",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "AIzaSyA4-TRjvRTpOxHHiKVBkFzMcRX3FMwQFf0"
+            },
+            {
+              "name": "=part",
+              "value": "=contentDetails,snippet,statistics"
+            },
+            {
+              "name": "id",
+              "value": "={{$json[\"id\"][\"videoId\"]}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "db8d82d4-a425-4ed7-9761-c98bc6c315fc",
+      "name": "Get Video Statistics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const data = item.json;\n  const videoData = data.items && data.items[0];\n  \n  if (!videoData) {\n    continue;\n  }\n  \n  const stats = videoData.statistics || {};\n  const snippet = videoData.snippet || {};\n  \n  const views = parseInt(stats.viewCount) || 0;\n  const likes = parseInt(stats.likeCount) || 0;\n  const comments = parseInt(stats.commentCount) || 0;\n  \n  const likeRatio = views > 0 ? (likes / views) * 100 : 0;\n  const commentRatio = views > 0 ? (comments / views) * 100 : 0;\n  \n  results.push({\n    title: snippet.title || 'No title',\n    description: snippet.description || 'No description', \n    publishTime: snippet.publishedAt || 'No date',\n    youtubeUrl: `https://www.youtube.com/watch?v=${videoData.id}`,\n    likeRatio: parseFloat(likeRatio.toFixed(2)),\n    commentRatio: parseFloat(commentRatio.toFixed(2)),\n    viewCount: views,\n    likeCount: likes,\n    commentCount: comments\n  });\n}\n\nreturn results.map(item => ({ json: item }));"
+      },
+      "id": "057b7b65-fcc8-4ace-823a-29d3e5b1ef65",
+      "name": "Calculate Engagement",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "803e4d2d-3fe8-4697-8f55-ece1c8403517",
+              "leftValue": "={{ $json.likeRatio }}",
+              "rightValue": 0.3,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            },
+            {
+              "id": "bab6326d-24d2-410b-8880-901c37931ae0",
+              "leftValue": "={{ $json.commentRatio }}",
+              "rightValue": 0.14,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            },
+            {
+              "id": "ad50cff3-6731-41a4-9dd3-a85b7bec5ec6",
+              "leftValue": "={{ $json.commentCount }}",
+              "rightValue": 50,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            },
+            {
+              "id": "e5e01b79-7a0b-4466-a414-f6572649d5f4",
+              "leftValue": "={{ $json.viewCount }}",
+              "rightValue": 6000,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d4a70851-ba17-473d-b389-ab7d62b6f9f6",
+      "name": "Filter High Performers",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        840,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "compare": "selectedFields",
+        "fieldsToCompare": "title",
+        "options": {}
+      },
+      "id": "ffc013f6-b484-4c6c-afa4-c0f0fd3d7b59",
+      "name": "Remove Duplicates",
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "a5763a26-51ff-4ef0-ab1a-70d65f1e28e9",
+              "leftValue": "={{ $json.message.content }}",
+              "rightValue": "yes",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "9d93ae0e-3868-401a-8644-4fa5f7adef23",
+      "name": "English Filter",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1780,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appTf2yBmYv4PzAz4",
+          "mode": "list",
+          "cachedResultName": "YouTube_Base",
+          "cachedResultUrl": "https://airtable.com/appTf2yBmYv4PzAz4"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblVDkZ3Mnk6IlLly",
+          "mode": "list",
+          "cachedResultName": "Table 1",
+          "cachedResultUrl": "https://airtable.com/appTf2yBmYv4PzAz4/tblVDkZ3Mnk6IlLly"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "channelTitle": "={{$('Remove Duplicates').item.json.title}}\n",
+            "publishTime": "={{ $('Calculate Engagement').item.json.publishTime }}",
+            "title": "={{ $('Calculate Engagement').item.json.title }}",
+            "description": "={{ $('Calculate Engagement').item.json.description }}",
+            "videoId": "={{$('Remove Duplicates').item.json.youtubeUrl}}",
+            "viewCount": "={{ $('Calculate Engagement').item.json.viewCount }}",
+            "likeRatio": "={{ $('Calculate Engagement').item.json.likeRatio }}",
+            "commentRatio": "={{ $('Calculate Engagement').item.json.commentRatio }}",
+            "likeCount": "={{ $('Calculate Engagement').item.json.likeCount }}",
+            "commentCount": "={{ $('Calculate Engagement').item.json.commentCount }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "channelTitle",
+              "displayName": "channelTitle",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "publishTime",
+              "displayName": "publishTime",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "videoId",
+              "displayName": "videoId",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "viewCount",
+              "displayName": "viewCount",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "likeRatio",
+              "displayName": "likeRatio",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "commentRatio",
+              "displayName": "commentRatio",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "likeCount",
+              "displayName": "likeCount",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "commentCount",
+              "displayName": "commentCount",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "b916c92d-d239-49da-b1f4-f740877b42f3",
+      "name": "Save to Airtable",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [
+        2180,
+        160
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "cu1RqxZ0oRR7kNd9",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## YouTube Search Node\n\n**Fetches recent videos (last 7 days) to ensure current trending content**\n\n- Uses publishedAfter parameter with dynamic date calculation\n- Returns up to 50 videos per search\n- Searches within US region for consistency",
+        "height": 200,
+        "width": 580
+      },
+      "id": "ee1499a5-f439-4e45-956f-ccec766741c3",
+      "name": "Note: Recent Videos",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -140,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Engagement Calculation\n\n**Calculates engagement ratios:**\n- Like ratio = (likes/views)*100\n- Comment ratio = (comments/views)*100\n\nThese metrics help identify videos that resonate with audiences beyond just view count.",
+        "width": 300
+      },
+      "id": "d905eb0d-9160-49ee-abec-7bfea4cd3129",
+      "name": "Note: Engagement Metrics",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        540,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Performance Filter\n\n**Filters for high engagement:**\n- >5% like ratio\n- >0.3% comment ratio  \n- >1000 views\n- Excludes crypto content\n\nThese thresholds identify videos with exceptional viewer engagement.",
+        "width": 300
+      },
+      "id": "fdff0b0d-ef29-4542-b5e8-59314318163a",
+      "name": "Note: Quality Filter",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        880,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Language Detection\n\n**Uses AI to filter English-only content for better relevance**\n\n- GPT-4 Mini for cost-effectiveness\n- Simple yes/no response format\n- Ensures content is accessible to target audience",
+        "height": 240,
+        "width": 320
+      },
+      "id": "3931e9df-760e-4809-a411-97f23c8439e6",
+      "name": "Note: Language Filter",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1180,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Setup Requirements\n\n1. **YouTube API**: Create Google Cloud project, enable YouTube Data API v3\n2. **API Credentials**: Get API key for HTTP requests\n3. **Airtable**: Create base with columns: Title, URL, Like Ratio, Comment Ratio, View Count\n4. **OpenAI**: Add API key for language detection",
+        "height": 200,
+        "width": 630
+      },
+      "id": "bcb1c3d1-d0cf-43f6-977b-ee10cd0d6f2b",
+      "name": "Note: Prerequisites",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -100,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "returnAll": true,
+        "filters": {
+          "publishedAfter": "={{ new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() }}",
+          "q": "={{$json.chatInput}}"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [
+        220,
+        220
+      ],
+      "id": "d09fd3ad-99f2-47b4-8bb9-0efb1bbcb7d1",
+      "name": "YouTube",
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "ECrLdbdPUKEwTK0Q",
+          "name": "YouTube account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Determine if this title is in English. Title: \"{{$json[\"title\"]}}\". Respond with only \"yes\" or \"no\"."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1240,
+        200
+      ],
+      "id": "01759b93-367c-413d-b51c-2040d032cfff",
+      "name": "OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "Enpl8Ee9vMwrovkQ",
+          "name": "OpenAi account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Get Video Statistics": {
+      "main": [
+        [
+          {
+            "node": "Calculate Engagement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Engagement": {
+      "main": [
+        [
+          {
+            "node": "Filter High Performers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter High Performers": {
+      "main": [
+        [
+          {
+            "node": "Remove Duplicates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove Duplicates": {
+      "main": [
+        [
+          {
+            "node": "OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "English Filter": {
+      "main": [
+        [
+          {
+            "node": "Save to Airtable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat Trigger": {
+      "main": [
+        [
+          {
+            "node": "YouTube",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YouTube": {
+      "main": [
+        [
+          {
+            "node": "Get Video Statistics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI": {
+      "main": [
+        [
+          {
+            "node": "English Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "397498f1-3dc8-4930-90cc-80e10a36309d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "13120373ec80e9949a249cba76f22648102713952322e249a807a1307cb361a9"
+  },
+  "id": "By9hWmTaJ3n5fOCq",
+  "tags": []
+}
